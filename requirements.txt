@@ -1,14 +1,9 @@
 # requirements.txt
 
 # Training dependencies
-ksim==0.1.3
+ksim==0.1.2
 xax==0.3.0
+mujoco==3.3.2
 mujoco-scenes
 
-# Inference dependencies
-kinfer[jax]
 
-# Jupyter Notebook dependencies
-jupyter
-ipykernel
-pre-commit

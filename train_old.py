@@ -1,3 +1,5 @@
+"""Defines simple task for training a walking policy for the default humanoid."""
+
 import asyncio
 import functools
 import math
@@ -13,12 +15,10 @@ import ksim
 import mujoco
 import mujoco_scenes
 import mujoco_scenes.mjcf
-import nest_asyncio
 import optax
 import xax
 from jaxtyping import Array, PRNGKeyArray
 
-nest_asyncio.apply()
 # These are in the order of the neural network outputs.
 ZEROS: list[tuple[str, float]] = [
     ("dof_right_shoulder_pitch_03", 0.0),
@@ -42,6 +42,45 @@ ZEROS: list[tuple[str, float]] = [
     ("dof_left_knee_04", math.radians(50.0)),
     ("dof_left_ankle_02", math.radians(-30.0)),
 ]
+
+
+@dataclass
+class HumanoidWalkingTaskConfig(ksim.PPOConfig):
+    """Config for the humanoid walking task."""
+
+    # Model parameters.
+    hidden_size: int = xax.field(
+        value=128,
+        help="The hidden size for the MLPs.",
+    )
+    depth: int = xax.field(
+        value=5,
+        help="The depth for the MLPs.",
+    )
+    num_mixtures: int = xax.field(
+        value=5,
+        help="The number of mixtures for the actor.",
+    )
+    var_scale: float = xax.field(
+        value=0.5,
+        help="The scale for the standard deviations of the actor.",
+    )
+    use_acc_gyro: bool = xax.field(
+        value=True,
+        help="Whether to use the IMU acceleration and gyroscope observations.",
+    )
+
+    # Optimizer parameters.
+    learning_rate: float = xax.field(
+        value=3e-4,
+        help="Learning rate for PPO.",
+    )
+    adam_weight_decay: float = xax.field(
+        value=1e-5,
+        help="Weight decay for the Adam optimizer.",
+    )
+
+
 @attrs.define(frozen=True, kw_only=True)
 class JointPositionPenalty(ksim.JointDeviationPenalty):
     @classmethod
@@ -112,6 +151,8 @@ class StraightLegPenalty(JointPositionPenalty):
             scale=scale,
             scale_by_curriculum=scale_by_curriculum,
         )
+
+
 class Actor(eqx.Module):
     """Actor for the walking task."""
 
@@ -295,59 +336,8 @@ class Model(eqx.Module):
             depth=depth,
             num_inputs=num_critic_inputs,
         )
-@dataclass
-class HumanoidWalkingTaskConfig(ksim.PPOConfig):
-    """Config for the humanoid walking task."""
 
-    # Model parameters.
-    hidden_size: int = xax.field(
-        value=128,
-        help="The hidden size for the MLPs.",
-    )
-    depth: int = xax.field(
-        value=5,
-        help="The depth for the MLPs.",
-    )
-    num_mixtures: int = xax.field(
-        value=5,
-        help="The number of mixtures for the actor.",
-    )
-    var_scale: float = xax.field(
-        value=0.5,
-        help="The scale for the standard deviations of the actor.",
-    )
-    use_acc_gyro: bool = xax.field(
-        value=True,
-        help="Whether to use the IMU acceleration and gyroscope observations.",
-    )
 
-    # Curriculum parameters.
-    num_curriculum_levels: int = xax.field(
-        value=100,
-        help="The number of curriculum levels to use.",
-    )
-    increase_threshold: float = xax.field(
-        value=5.0,
-        help="Increase the curriculum level when the mean trajectory length is above this threshold.",
-    )
-    decrease_threshold: float = xax.field(
-        value=1.0,
-        help="Decrease the curriculum level when the mean trajectory length is below this threshold.",
-    )
-    min_level_steps: int = xax.field(
-        value=1,
-        help="The minimum number of steps to wait before changing the curriculum level.",
-    )
-
-    # Optimizer parameters.
-    learning_rate: float = xax.field(
-        value=3e-4,
-        help="Learning rate for PPO.",
-    )
-    adam_weight_decay: float = xax.field(
-        value=1e-5,
-        help="Weight decay for the Adam optimizer.",
-    )
 class HumanoidWalkingTask(ksim.PPOTask[HumanoidWalkingTaskConfig]):
     def get_optimizer(self) -> optax.GradientTransformation:
         return (
@@ -358,7 +348,6 @@ class HumanoidWalkingTask(ksim.PPOTask[HumanoidWalkingTaskConfig]):
 
     def get_mujoco_model(self) -> mujoco.MjModel:
         mjcf_path = asyncio.run(ksim.get_mujoco_model_path("kbot", name="robot"))
-        print(mjcf_path)
         return mujoco_scenes.mjcf.load_mjmodel(mjcf_path, scene="smooth")
 
     def get_mujoco_model_metadata(self, mj_model: mujoco.MjModel) -> ksim.Metadata:
@@ -645,6 +634,8 @@ class HumanoidWalkingTask(ksim.PPOTask[HumanoidWalkingTaskConfig]):
         )
         action_j = action_dist_j.mode() if argmax else action_dist_j.sample(seed=rng)
         return ksim.Action(action=action_j, carry=(actor_carry, critic_carry_in))
+
+
 if __name__ == "__main__":
     HumanoidWalkingTask.launch(
         HumanoidWalkingTaskConfig(
@@ -662,7 +653,7 @@ if __name__ == "__main__":
             ls_iterations=8,
             action_latency_range=(0.003, 0.01),  # Simulate 3-10ms of latency.
             drop_action_prob=0.05,  # Drop 5% of commands.
-            # Visualization parameters
+            # Visualization parameters.
             render_track_body_id=0,
             # Checkpointing parameters.
             save_every_n_seconds=60,
