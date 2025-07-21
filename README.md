@@ -17,3 +17,15 @@ tensorboard --logdir humanoid_walking_task
 python -m train run_mode=view load_from_ckpt_path=humanoid_walking_task/run_<number>/checkpoints/ckpt.bin
 ```
 **Using old Ksim lib to render on wsl2 ubuntu new one use Qt which is not properly supported in windows WSL2
+
+make necessary changes in ksim-0.1.2 and install using:
+
+1. go to the code dir
+```bash
+cd ksim-0.1.2
+```
+
+2.install the latest change package
+```bash
+pip install -e .
+```

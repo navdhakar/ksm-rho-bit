@@ -32,11 +32,11 @@ async def get_mujoco_model_path(model_name: str, cache: bool = True, name: str |
 
     if name is None:
         try:
-            mjcf_path = next(urdf_dir.glob("*.xml"))
+            mjcf_path = next(urdf_dir.glob("*.mjcf"))
         except StopIteration as err:
             raise ValueError(f"No MJCF file found for {model_name} (in {urdf_dir})") from err
     else:
-        mjcf_path = urdf_dir / f"{name}.xml"
+        mjcf_path = urdf_dir / f"{name}.mjcf"
         if not mjcf_path.exists():
             raise ValueError(f"MJCF file {name} does not exist for {model_name} (in {urdf_dir})")
 
