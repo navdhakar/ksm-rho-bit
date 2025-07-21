@@ -247,12 +247,18 @@ def log_joint_config_table(
 ) -> None:
     """Log configuration of joints and actuators in a table."""
     actuator_name_to_nn_id = get_ctrl_data_idx_by_name(model)
+    # print(actuator_name_to_nn_id)
+
     joint_names = get_joint_names_in_order(model)
+    print(joint_names)
+
     joint_limits = get_position_limits(model)
+    print(joint_limits)
 
     if metadata.joint_name_to_metadata is None:
         raise ValueError("Joint metadata is required for the joint config table")
     joint_metadata = metadata.joint_name_to_metadata
+    # print(joint_metadata)
 
     # The \n is to make the table headers take up less horizontal space.
     headers = [
@@ -282,6 +288,7 @@ def log_joint_config_table(
             continue
 
         dof_id = model.jnt_dofadr[joint_idx]
+        print(joint_name)
         actuator_name = f"{joint_name}_ctrl"
 
         # Checks for errors in the joint configuration setup

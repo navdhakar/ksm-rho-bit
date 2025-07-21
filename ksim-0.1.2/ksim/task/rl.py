@@ -901,6 +901,7 @@ class RLTask(xax.Task[Config], Generic[Config], ABC):
             rng=act_rng,
             argmax=constants.argmax_action,
         )
+        print(action.action)
 
         # Steps the physics engine.
         next_physics_state: PhysicsState = constants.engine.step(
@@ -1551,7 +1552,7 @@ class RLTask(xax.Task[Config], Generic[Config], ABC):
             mj_model = self.get_mujoco_model()
             mj_model = self.set_mujoco_model_opts(mj_model)
             metadata = self.get_mujoco_model_metadata(mj_model)
-            log_joint_config_table(mj_model, metadata, self.logger)
+            # log_joint_config_table(mj_model, metadata, self.logger)
 
             randomizers = self.get_physics_randomizers(mj_model)
 

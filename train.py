@@ -21,27 +21,51 @@ from jaxtyping import Array, PRNGKeyArray
 nest_asyncio.apply()
 # These are in the order of the neural network outputs.
 ZEROS: list[tuple[str, float]] = [
-    ("dof_right_shoulder_pitch_03", 0.0),
-    ("dof_right_shoulder_roll_03", math.radians(-10.0)),
-    ("dof_right_shoulder_yaw_02", 0.0),
-    ("dof_right_elbow_02", math.radians(90.0)),
-    ("dof_right_wrist_00", 0.0),
-    ("dof_left_shoulder_pitch_03", 0.0),
-    ("dof_left_shoulder_roll_03", math.radians(10.0)),
-    ("dof_left_shoulder_yaw_02", 0.0),
-    ("dof_left_elbow_02", math.radians(-90.0)),
-    ("dof_left_wrist_00", 0.0),
-    ("dof_right_hip_pitch_04", math.radians(-20.0)),
-    ("dof_right_hip_roll_03", math.radians(-0.0)),
-    ("dof_right_hip_yaw_03", 0.0),
-    ("dof_right_knee_04", math.radians(-50.0)),
-    ("dof_right_ankle_02", math.radians(30.0)),
-    ("dof_left_hip_pitch_04", math.radians(20.0)),
-    ("dof_left_hip_roll_03", math.radians(0.0)),
-    ("dof_left_hip_yaw_03", 0.0),
-    ("dof_left_knee_04", math.radians(50.0)),
-    ("dof_left_ankle_02", math.radians(-30.0)),
+    ("right_shoulder_pitch", 0.0),
+    ("right_shoulder_roll", math.radians(-10.0)),
+    ("right_shoulder_yaw", 0.0),
+    ("right_elbow", math.radians(90.0)),
+    ("right_wrist_pitch", 0.0),
+    ("left_shoulder_pitch", 0.0),
+    ("left_shoulder_roll", math.radians(10.0)),
+    ("left_shoulder_yaw", 0.0),
+    ("left_elbow", math.radians(-90.0)),
+    ("left_wrist_pitch", 0.0),
+    ("right_hip_pitch", math.radians(-20.0)),
+    ("right_hip_roll", math.radians(-0.0)),
+    ("right_hip_yaw", 0.0),
+    ("right_knee", math.radians(-50.0)),
+    ("right_ankle_pitch", math.radians(30.0)),
+    ("left_hip_pitch", math.radians(20.0)),
+    ("left_hip_roll", math.radians(0.0)),
+    ("left_hip_yaw", 0.0),
+    ("left_knee", math.radians(50.0)),
+    ("left_ankle_pitch", math.radians(-30.0)),
 ]
+# K20 bot nn inputs
+# ZEROS: list[tuple[str, float]] = [
+#     ("dof_right_shoulder_pitch_03", 0.0),
+#     ("dof_right_shoulder_roll_03", math.radians(-10.0)),
+#     ("dof_right_shoulder_yaw_02", 0.0),
+#     ("dof_right_elbow_02", math.radians(90.0)),
+#     ("dof_right_wrist_00", 0.0),
+#     ("dof_left_shoulder_pitch_03", 0.0),
+#     ("dof_left_shoulder_roll_03", math.radians(10.0)),
+#     ("dof_left_shoulder_yaw_02", 0.0),
+#     ("dof_left_elbow_02", math.radians(-90.0)),
+#     ("dof_left_wrist_00", 0.0),
+#     ("dof_right_hip_pitch_04", math.radians(-20.0)),
+#     ("dof_right_hip_roll_03", math.radians(-0.0)),
+#     ("dof_right_hip_yaw_03", 0.0),
+#     ("dof_right_knee_04", math.radians(-50.0)),
+#     ("dof_right_ankle_02", math.radians(30.0)),
+#     ("dof_left_hip_pitch_04", math.radians(20.0)),
+#     ("dof_left_hip_roll_03", math.radians(0.0)),
+#     ("dof_left_hip_yaw_03", 0.0),
+#     ("dof_left_knee_04", math.radians(50.0)),
+#     ("dof_left_ankle_02", math.radians(-30.0)),
+# ]
+
 @attrs.define(frozen=True, kw_only=True)
 class JointPositionPenalty(ksim.JointDeviationPenalty):
     @classmethod
@@ -75,16 +99,16 @@ class BentArmPenalty(JointPositionPenalty):
     ) -> Self:
         return cls.create_from_names(
             names=[
-                "dof_right_shoulder_pitch_03",
-                "dof_right_shoulder_roll_03",
-                "dof_right_shoulder_yaw_02",
-                "dof_right_elbow_02",
-                "dof_right_wrist_00",
-                "dof_left_shoulder_pitch_03",
-                "dof_left_shoulder_roll_03",
-                "dof_left_shoulder_yaw_02",
-                "dof_left_elbow_02",
-                "dof_left_wrist_00",
+                "right_shoulder_pitch",
+                "right_shoulder_roll",
+                "right_shoulder_yaw",
+                "right_elbow",
+                "right_wrist_pitch",
+                "left_shoulder_pitch",
+                "left_shoulder_roll",
+                "left_shoulder_yaw",
+                "left_elbow",
+                "left_wrist_pitch",
             ],
             physics_model=physics_model,
             scale=scale,
@@ -103,10 +127,10 @@ class StraightLegPenalty(JointPositionPenalty):
     ) -> Self:
         return cls.create_from_names(
             names=[
-                "dof_left_hip_roll_03",
-                "dof_left_hip_yaw_03",
-                "dof_right_hip_roll_03",
-                "dof_right_hip_yaw_03",
+                "left_hip_roll",
+                "left_hip_yaw",
+                "right_hip_roll",
+                "right_hip_yaw",
             ],
             physics_model=physics_model,
             scale=scale,
@@ -175,6 +199,7 @@ class Actor(eqx.Module):
         self.var_scale = var_scale
 
     def forward(self, obs_n: Array, carry: Array) -> tuple[distrax.Distribution, Array]:
+        print(obs_n)
         x_n = self.input_proj(obs_n)
         out_carries = []
         for i, rnn in enumerate(self.rnns):
@@ -357,12 +382,12 @@ class HumanoidWalkingTask(ksim.PPOTask[HumanoidWalkingTaskConfig]):
         )
 
     def get_mujoco_model(self) -> mujoco.MjModel:
-        mjcf_path = asyncio.run(ksim.get_mujoco_model_path("kbot", name="robot"))
+        mjcf_path = asyncio.run(ksim.get_mujoco_model_path_xml("g1", name="g1_23dof"))
         print(mjcf_path)
-        return mujoco_scenes.mjcf.load_mjmodel(mjcf_path, scene="smooth")
+        return mujoco.MjModel.from_xml_path(str(mjcf_path))
 
     def get_mujoco_model_metadata(self, mj_model: mujoco.MjModel) -> ksim.Metadata:
-        metadata = asyncio.run(ksim.get_mujoco_model_metadata("kbot"))
+        metadata = asyncio.run(ksim.get_mujoco_model_metadata("g1"))
         if metadata.joint_name_to_metadata is None:
             raise ValueError("Joint metadata is not available")
         if metadata.actuator_type_to_metadata is None:
@@ -426,7 +451,7 @@ class HumanoidWalkingTask(ksim.PPOTask[HumanoidWalkingTaskConfig]):
             ksim.ActuatorAccelerationObservation(),
             ksim.ProjectedGravityObservation.create(
                 physics_model=physics_model,
-                framequat_name="imu_site_quat",
+                framequat_name="imu_quat", #imu_site_quat for k20 robot
                 lag_range=(0.0, 0.1),
                 noise=math.radians(1),
             ),
@@ -481,7 +506,7 @@ class HumanoidWalkingTask(ksim.PPOTask[HumanoidWalkingTaskConfig]):
     def get_model(self, key: PRNGKeyArray) -> Model:
         return Model(
             key,
-            num_actor_inputs=51 if self.config.use_acc_gyro else 45,
+            num_actor_inputs=51 if self.config.use_acc_gyro else 45, # for g1 we have 69 obs vs 51 for k20 modified g1 to reduce joints
             num_actor_outputs=len(ZEROS),
             num_critic_inputs=446,
             min_std=0.001,

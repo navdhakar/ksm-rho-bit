@@ -4,6 +4,7 @@ __all__ = [
     "get_mujoco_model_path",
     "get_mujoco_model_metadata",
     "get_mujoco_model_and_metadata",
+    "get_mujoco_model_path_xml",
 ]
 
 import asyncio
@@ -42,11 +43,34 @@ async def get_mujoco_model_path(model_name: str, cache: bool = True, name: str |
 
     return mjcf_path
 
+async def get_mujoco_model_path_xml(model_name: str, cache: bool = True, name: str | None = None) -> str | Path:
+    """Downloads and caches the model URDF if it doesn't exists in a local directory."""
+    try:
+        urdf_dir = Path(model_name)
+        if not urdf_dir.exists():
+            raise ValueError(f"Model {model_name} does not exist")
+    except ValueError:
+        async with K() as api:
+            urdf_dir = await api.download_and_extract_urdf(model_name, cache=cache)
+
+    if name is None:
+        try:
+            mjcf_path = next(urdf_dir.glob("*.xml"))
+        except StopIteration as err:
+            raise ValueError(f"No MJCF file found for {model_name} (in {urdf_dir})") from err
+    else:
+        mjcf_path = urdf_dir / f"{name}.xml"
+        if not mjcf_path.exists():
+            raise ValueError(f"MJCF file {name} does not exist for {model_name} (in {urdf_dir})")
+
+    return mjcf_path
+
 
 async def get_mujoco_model_metadata(model_name: str, cache: bool = True) -> Metadata:
     """Downloads and caches the model metadata."""
     try:
         directory = Path(model_name)
+
         if not directory.exists():
             raise ValueError(f"Model {model_name} does not exist")
         metadata_path = directory / "metadata.json"
@@ -64,7 +88,7 @@ async def get_mujoco_model_metadata(model_name: str, cache: bool = True) -> Meta
             metadata_path.parent.mkdir(parents=True, exist_ok=True)
             with open(metadata_path, "w") as f:
                 json.dump(metadata.model_dump(), f, indent=2)
-
+    print(metadata_path)
     with open(metadata_path, "r") as f:
         metadata = RobotURDFMetadataOutput.model_validate_json(f.read())
 

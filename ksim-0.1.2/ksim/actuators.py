@@ -96,6 +96,7 @@ class PositionActuators(Actuators):
     ) -> None:
         """Creates easily vector multipliable kps and kds."""
         ctrl_name_to_idx = get_ctrl_data_idx_by_name(physics_model)
+        print(ctrl_name_to_idx)
         kps_list = [-1.0] * len(ctrl_name_to_idx)
         kds_list = [-1.0] * len(ctrl_name_to_idx)
         ctrl_clip_list = [jnp.inf] * len(ctrl_name_to_idx)
@@ -154,6 +155,8 @@ class PositionActuators(Actuators):
         current_pos = physics_data.qpos[7:]  # First 7 are always root pos.
         current_vel = physics_data.qvel[6:]  # First 6 are always root vel.
         target_velocities = jnp.zeros_like(action)
+        # print(action.shape)
+        # print(physics_data.qpos)
         pos_delta = self.add_noise(self.action_noise, self.action_noise_type, action - current_pos, pos_rng)
         vel_delta = target_velocities - current_vel
 
