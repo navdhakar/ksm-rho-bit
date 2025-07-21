@@ -1,0 +1,29 @@
+# requirements.txt
+
+# Utilities
+numpy
+matplotlib
+tqdm
+tabulate
+# K-Scale CLI
+kscale
+
+# Jax
+distrax
+jax
+mediapy
+optax
+scipy
+xax
+
+# Mujoco
+mujoco
+mujoco-mjx
+# mujoco-scenes
+
+# Priors
+bvhio
+pyglm
+
+# Deployment
+pykos

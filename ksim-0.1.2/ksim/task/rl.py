@@ -1549,7 +1549,6 @@ class RLTask(xax.Task[Config], Generic[Config], ABC):
 
             # Loads the Mujoco model and logs some information about it.
             mj_model = self.get_mujoco_model()
-            print(mj_model)
             mj_model = self.set_mujoco_model_opts(mj_model)
             metadata = self.get_mujoco_model_metadata(mj_model)
             log_joint_config_table(mj_model, metadata, self.logger)
