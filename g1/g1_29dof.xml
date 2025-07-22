@@ -58,9 +58,14 @@
     <mesh name="right_wrist_yaw_link" file="right_wrist_yaw_link.STL" />
     <mesh name="right_rubber_hand" file="right_rubber_hand.STL" />
   </asset>
-
+  <equality>
+    <weld body1="world" body2="support_pole"/>
+  </equality>
   <worldbody>
     <body name="pelvis" pos="0 0 0.793">
+      <body name="support_pole" pos="0.2 0 0">
+        <geom type="cylinder" size="0.02 1.5" rgba="0.2 0.8 0.2 1" pos="0 0 1.5"/>
+      </body>
       <site name="imu" size="0.01" pos="0.0 0.0 0.0" />
       <inertial pos="0 0 -0.07605" quat="1 0 -0.000399148 0" mass="3.813"
         diaginertia="0.010549 0.0093089 0.0079184" />

@@ -22,25 +22,28 @@ nest_asyncio.apply()
 # These are in the order of the neural network outputs.
 ZEROS: list[tuple[str, float]] = [
     ("right_shoulder_pitch", 0.0),
-    ("right_shoulder_roll", math.radians(-10.0)),
+    ("right_shoulder_roll", math.radians(0.0)),
     ("right_shoulder_yaw", 0.0),
-    ("right_elbow", math.radians(90.0)),
+    ("right_elbow", math.radians(0.0)),
     ("right_wrist_pitch", 0.0),
+
     ("left_shoulder_pitch", 0.0),
-    ("left_shoulder_roll", math.radians(10.0)),
+    ("left_shoulder_roll", math.radians(0.0)),
     ("left_shoulder_yaw", 0.0),
-    ("left_elbow", math.radians(-90.0)),
+    ("left_elbow", math.radians(0.0)),
     ("left_wrist_pitch", 0.0),
-    ("right_hip_pitch", math.radians(-20.0)),
-    ("right_hip_roll", math.radians(-0.0)),
+
+    ("right_hip_pitch", math.radians(0.0)),
+    ("right_hip_roll", math.radians(0.0)),
     ("right_hip_yaw", 0.0),
-    ("right_knee", math.radians(-50.0)),
-    ("right_ankle_pitch", math.radians(30.0)),
-    ("left_hip_pitch", math.radians(20.0)),
+    ("right_knee", math.radians(0.0)),
+    ("right_ankle_pitch", math.radians(0.0)),
+
+    ("left_hip_pitch", math.radians(0.0)),
     ("left_hip_roll", math.radians(0.0)),
     ("left_hip_yaw", 0.0),
-    ("left_knee", math.radians(50.0)),
-    ("left_ankle_pitch", math.radians(-30.0)),
+    ("left_knee", math.radians(0.0)),
+    ("left_ankle_pitch", math.radians(0.0)),
 ]
 # K20 bot nn inputs
 # ZEROS: list[tuple[str, float]] = [
@@ -199,7 +202,7 @@ class Actor(eqx.Module):
         self.var_scale = var_scale
 
     def forward(self, obs_n: Array, carry: Array) -> tuple[distrax.Distribution, Array]:
-        print(obs_n)
+        # print(obs_n)
         x_n = self.input_proj(obs_n)
         out_carries = []
         for i, rnn in enumerate(self.rnns):
@@ -382,10 +385,9 @@ class HumanoidWalkingTask(ksim.PPOTask[HumanoidWalkingTaskConfig]):
         )
 
     def get_mujoco_model(self) -> mujoco.MjModel:
-        mjcf_path = asyncio.run(ksim.get_mujoco_model_path_xml("g1", name="g1_23dof"))
-        print(mjcf_path)
-        return mujoco.MjModel.from_xml_path(str(mjcf_path))
-
+        mjcf_path = asyncio.run(ksim.get_mujoco_model_path_xml("g1", name="scene_23dof"))
+        # print(mjcf_path)
+        return mujoco.MjModel.from_xml_path(str(mjcf_path)) #using this to directly load the scene for unitree g1 robot
     def get_mujoco_model_metadata(self, mj_model: mujoco.MjModel) -> ksim.Metadata:
         metadata = asyncio.run(ksim.get_mujoco_model_metadata("g1"))
         if metadata.joint_name_to_metadata is None:
