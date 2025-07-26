@@ -76,6 +76,7 @@
       <body name="support_pole" pos="0.2 0 0">
         <geom type="cylinder" size="0.02 1.5" rgba="0.2 0.8 0.2 1" pos="0 0 1.5"/>
       </body>
+      <site name="imu" size="0.01" pos="0.0 0.0 0.0" quat="1.0 0.0 0.0 0.0"/>
       
       <inertial pos="0 0 -0.07605" quat="1 0 -0.000399148 0" mass="3.813"
         diaginertia="0.010549 0.0093089 0.0079184" />
@@ -280,8 +281,6 @@
             </body>
           </body>
         </body>
-      <site name="imu" size="0.01" pos="0.0 0.0 0.0" quat="1.0 0.0 0.0 0.0"/>
-
         <body name="right_shoulder_pitch_link" pos="0.0039563 -0.10021 0.23778"
           quat="0.990264 -0.139201 1.38722e-05 9.86868e-05">
           <inertial pos="0 -0.035892 -0.011628" quat="0.68225 -0.326267 0.0130458 0.654152"
@@ -324,8 +323,8 @@
                   <inertial pos="0.107947 -0.00163512 0.00202245"
                     quat="0.516933 0.48416 0.504265 0.494051" mass="0.356929"
                     diaginertia="0.00200292 0.0019426 0.000195232" />
-                  <!-- <joint name="right_wrist_roll" pos="0 0 0" axis="1 0 0"
-                    range="-1.97222 1.97222" actuatorfrcrange="-25 25" class="arm_motor" /> -->
+                  <joint name="right_wrist_roll" pos="0 0 0" axis="1 0 0"
+                    range="-1.97222 1.97222" actuatorfrcrange="-25 25" class="arm_motor" />
                   <geom type="mesh" contype="0" conaffinity="0" group="1" density="0"
                     rgba="0.7 0.7 0.7 1" mesh="right_wrist_roll_rubber_hand" />
                   <geom type="mesh" rgba="0.7 0.7 0.7 1" mesh="right_wrist_roll_rubber_hand" />

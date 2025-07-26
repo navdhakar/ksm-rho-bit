@@ -286,7 +286,7 @@
                 <inertial pos="0.064956 -0.004454 -0.010062"
                   quat="0.388129 0.388821 0.636132 0.541765" mass="0.6"
                   diaginertia="0.000443035 0.000421612 0.000259353" />
-                <joint name="right_elbow" pos="0 0 0" axis="0 1 0" range="-1.0472 2.0944"
+                <joint name="right_elbow" pos="0 0 0" axis="0 -1 0" range="-1.0472 2.0944"
                   actuatorfrcrange="-25 25" class="arm_motor" />
                 <geom type="mesh" contype="0" conaffinity="0" group="1" density="0"
                   rgba="0.7 0.7 0.7 1" mesh="right_elbow_link" />

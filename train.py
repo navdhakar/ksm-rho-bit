@@ -21,14 +21,14 @@ from jaxtyping import Array, PRNGKeyArray
 nest_asyncio.apply()
 # These are in the order of the neural network outputs.
 ZEROS: list[tuple[str, float]] = [
-    ("right_shoulder_pitch", 0.0),
-    ("right_shoulder_roll", math.radians(0.0)),
+    ("right_shoulder_pitch", 0.02),
+    ("right_shoulder_roll", math.radians(-10.0)),
     ("right_shoulder_yaw", 0.0),
     ("right_elbow", math.radians(0.0)),
     ("right_wrist_pitch", 0.0),
 
-    ("left_shoulder_pitch", 0.0),
-    ("left_shoulder_roll", math.radians(0.0)),
+    ("left_shoulder_pitch", 0.02),
+    ("left_shoulder_roll", math.radians(10.0)),
     ("left_shoulder_yaw", 0.0),
     ("left_elbow", math.radians(0.0)),
     ("left_wrist_pitch", 0.0),
