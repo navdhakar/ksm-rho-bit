@@ -29,3 +29,23 @@ cd ksim-0.1.2
 ```bash
 pip install -e .
 ```
+
+
+## Implemented Simple PPO:
+Reason: Ksim training was acting weird on left arm for g1 robot could not figure out why
+
+- using GruCell RNN, need to work on better reward function, no loss viz yet to asses the trainings
+
+- actor: 256 hidden state, 5 layer deep
+
+- critic: 256 hidden state, 5 layer deep
+
+1. Train
+```bash
+python simple_ppo.py --max_steps 10
+```
+
+2. Test
+```bash
+python simple_ppo.py --task test --run_mode view  --load_checkpoint=training_runs/run_5/ppo_humanoid_final.pth
+```
