@@ -15,6 +15,8 @@ import os
 import argparse
 import re
 
+
+
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 class HumanoidEnv:
@@ -187,71 +189,130 @@ class HumanoidEnv:
 
 
 class PolicyNetwork(nn.Module):
-    """Actor-Critic Network for PPO"""
+    """Actor-Critic Network with GRU-based RNN for PPO"""
     
-    def __init__(self, obs_dim, action_dim, hidden_dim=256):
+    def __init__(self, obs_dim, action_dim, hidden_size=256, depth=5):
         super(PolicyNetwork, self).__init__()
         
-        # Shared layers
-        self.shared = nn.Sequential(
-            nn.Linear(obs_dim, hidden_dim),
-            nn.Tanh(),
-            nn.Linear(hidden_dim, hidden_dim),
-            nn.Tanh(),
-        )
+        self.hidden_size = hidden_size
+        self.depth = depth
+        self.action_dim = action_dim
         
-        # Actor head (policy)
-        self.actor = nn.Sequential(
-            nn.Linear(hidden_dim, hidden_dim),
+        # Input projection to hidden size
+        self.input_proj = nn.Linear(obs_dim, hidden_size)
+        
+        # Stack of GRU cells (depth=5)
+        self.gru_cells = nn.ModuleList([
+            nn.GRUCell(hidden_size, hidden_size) for _ in range(depth)
+        ])
+        
+        # Actor head (policy) - projects from hidden to action space
+        self.actor_proj = nn.Sequential(
+            nn.Linear(hidden_size, hidden_size),
             nn.Tanh(),
-            nn.Linear(hidden_dim, action_dim),
+            nn.Linear(hidden_size, action_dim)
         )
         
         # Critic head (value function)
-        self.critic = nn.Sequential(
-            nn.Linear(hidden_dim, hidden_dim),
+        self.critic_proj = nn.Sequential(
+            nn.Linear(hidden_size, hidden_size),
             nn.Tanh(),
-            nn.Linear(hidden_dim, 1),
+            nn.Linear(hidden_size, 1)
         )
         
-        # Action standard deviation (learnable)
+        # Action standard deviation (learnable parameter)
         self.log_std = nn.Parameter(torch.zeros(action_dim))
         
-    def forward(self, state):
-        shared_features = self.shared(state)
+        # Initialize hidden states
+        self.register_buffer('initial_hidden', torch.zeros(depth, hidden_size))
         
-        # Actor output
-        action_mean = self.actor(shared_features)
-        action_std = torch.exp(self.log_std)
-        
-        # Critic output
-        value = self.critic(shared_features)
-        
-        return action_mean, action_std, value
+    def init_hidden(self, batch_size=1):
+        """Initialize hidden states for all GRU layers"""
+        device = next(self.parameters()).device
+        return [torch.zeros(batch_size, self.hidden_size, device=device) 
+                for _ in range(self.depth)]
     
-    def get_action(self, state):
-        action_mean, action_std, value = self.forward(state)
+    def forward(self, state, hidden_states=None):
+        """Forward pass through RNN-based policy network"""
+        batch_size = state.size(0) if len(state.shape) > 1 else 1
+        
+        # Initialize hidden states if not provided
+        if hidden_states is None:
+            hidden_states = self.init_hidden(batch_size)
+        
+        # Project input to hidden size
+        x = torch.tanh(self.input_proj(state))
+        
+        # Pass through stacked GRU cells
+        new_hidden_states = []
+        for i, gru_cell in enumerate(self.gru_cells):
+            x = gru_cell(x, hidden_states[i])
+            new_hidden_states.append(x)
+        
+        # Actor output (policy)
+        action_mean = self.actor_proj(x)
+        action_std = torch.exp(self.log_std.clamp(-5, 2))  # Clamp for stability
+        
+        # Critic output (value function)
+        value = self.critic_proj(x)
+        
+        return action_mean, action_std, value, new_hidden_states
+    
+    def get_action(self, state, hidden_states=None):
+        """Sample action from policy"""
+        action_mean, action_std, value, new_hidden_states = self.forward(state, hidden_states)
+        
+        # Create normal distribution and sample
         dist = Normal(action_mean, action_std)
         action = dist.sample()
         log_prob = dist.log_prob(action).sum(dim=-1)
         
-        return action, log_prob, value
+        return action, log_prob, value, new_hidden_states
     
-    def evaluate_actions(self, states, actions):
-        action_mean, action_std, values = self.forward(states)
-        dist = Normal(action_mean, action_std)
-        log_probs = dist.log_prob(actions).sum(dim=-1)
-        entropy = dist.entropy().sum(dim=-1)
+    def evaluate_actions(self, states, actions, hidden_states=None):
+        """Evaluate actions for policy update"""
+        batch_size, seq_len = states.shape[:2] if len(states.shape) > 2 else (states.shape[0], 1)
         
-        return log_probs, values.squeeze(), entropy
+        if len(states.shape) == 2:  # Single timestep
+            action_mean, action_std, values, _ = self.forward(states, hidden_states)
+            dist = Normal(action_mean, action_std)
+            log_probs = dist.log_prob(actions).sum(dim=-1)
+            entropy = dist.entropy().sum(dim=-1)
+            return log_probs, values.squeeze(), entropy
+        
+        # Handle sequences (for future sequence-based training)
+        all_log_probs = []
+        all_values = []
+        all_entropy = []
+        
+        current_hidden = hidden_states if hidden_states is not None else self.init_hidden(batch_size)
+        
+        for t in range(seq_len):
+            action_mean, action_std, value, current_hidden = self.forward(
+                states[:, t], current_hidden
+            )
+            
+            dist = Normal(action_mean, action_std)
+            log_prob = dist.log_prob(actions[:, t]).sum(dim=-1)
+            entropy = dist.entropy().sum(dim=-1)
+            
+            all_log_probs.append(log_prob)
+            all_values.append(value.squeeze())
+            all_entropy.append(entropy)
+        
+        log_probs = torch.stack(all_log_probs, dim=1)
+        values = torch.stack(all_values, dim=1)
+        entropy = torch.stack(all_entropy, dim=1)
+        
+        return log_probs, values, entropy
 
 
 class PPOAgent:
-    """Proximal Policy Optimization Agent"""
+    """Proximal Policy Optimization Agent with RNN support"""
     
     def __init__(self, obs_dim, action_dim, lr=3e-4, gamma=0.99, 
                  lambda_gae=0.95, clip_eps=0.2, value_coef=0.5, 
-                 entropy_coef=0.01, max_grad_norm=0.5):
+                 entropy_coef=0.01, max_grad_norm=0.5, hidden_size=256, depth=5):
         
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         print(f"Using device: {self.device}")
@@ -264,12 +325,20 @@ class PPOAgent:
         self.entropy_coef = entropy_coef
         self.max_grad_norm = max_grad_norm
         
-        # Networks
-        self.policy = PolicyNetwork(obs_dim, action_dim).to(self.device)
+        # Networks (now with RNN)
+        self.policy = PolicyNetwork(obs_dim, action_dim, hidden_size, depth).to(self.device)
         self.optimizer = optim.Adam(self.policy.parameters(), lr=lr)
+        
+        # RNN state management
+        self.hidden_states = None
+        self.reset_hidden_states()
         
         # Storage
         self.reset_storage()
+        
+    def reset_hidden_states(self):
+        """Reset RNN hidden states"""
+        self.hidden_states = self.policy.init_hidden(1)
         
     def reset_storage(self):
         self.states = []
@@ -278,6 +347,7 @@ class PPOAgent:
         self.log_probs = []
         self.values = []
         self.dones = []
+        # Don't store hidden states for now (stateless training)
         
     def store_transition(self, state, action, reward, log_prob, value, done):
         self.states.append(state)
@@ -335,9 +405,9 @@ class PPOAgent:
                 batch_advantages = advantages[batch_indices]
                 batch_returns = returns[batch_indices]
                 
-                # Evaluate current policy
+                # Evaluate current policy (stateless for batch training)
                 log_probs, values, entropy = self.policy.evaluate_actions(
-                    batch_states, batch_actions)
+                    batch_states, batch_actions, hidden_states=None)
                 
                 # Compute ratios
                 ratios = torch.exp(log_probs - batch_old_log_probs)
@@ -378,19 +448,34 @@ class PPOAgent:
         }
     
     def get_action(self, state):
+        """Get action using RNN (maintains hidden state)"""
         state = torch.FloatTensor(state).unsqueeze(0).to(self.device)
         with torch.no_grad():
-            action, log_prob, value = self.policy.get_action(state)
+            action, log_prob, value, new_hidden_states = self.policy.get_action(
+                state, self.hidden_states)
+            
+        # Update hidden states for next timestep
+        self.hidden_states = new_hidden_states
         
         return (action.cpu().numpy()[0], 
                 log_prob.cpu().numpy()[0], 
                 value.cpu().numpy()[0])
     
+    def reset_episode(self):
+        """Reset hidden states at the beginning of each episode"""
+        self.reset_hidden_states()
+    
     def save(self, filepath):
-        torch.save(self.policy.state_dict(), filepath)
+        torch.save({
+            'policy_state_dict': self.policy.state_dict(),
+            'optimizer_state_dict': self.optimizer.state_dict(),
+        }, filepath)
         
     def load(self, filepath):
-        self.policy.load_state_dict(torch.load(filepath, map_location=self.device))
+        checkpoint = torch.load(filepath, map_location=self.device)
+        self.policy.load_state_dict(checkpoint['policy_state_dict'])
+        if 'optimizer_state_dict' in checkpoint:
+            self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
 
 def get_next_run_dir(base_dir):
     existing = [d for d in os.listdir(base_dir) if os.path.isdir(os.path.join(base_dir, d))]
