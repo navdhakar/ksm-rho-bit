@@ -30,7 +30,7 @@ class HumanoidEnv:
         
         # Initialize minimal viewer if rendering
         self.viewer = None
-        if render_mode == "human":
+        if render_mode == "view":
             # Use passive viewer with minimal settings
             self.viewer = mujoco.viewer.launch_passive(
                 self.model, self.data,
@@ -100,7 +100,7 @@ class HumanoidEnv:
         self.current_step += 1
         
         # Render if requested
-        if self.render_mode == "human" and self.viewer is not None:
+        if self.render_mode == "view" and self.viewer is not None:
             self.viewer.sync()
             # Slower rendering for better visibility during testing
             time.sleep(0.02)  # 20ms delay for smoother viewing
@@ -404,7 +404,7 @@ def get_next_run_dir(base_dir):
     next_num = max(run_nums) + 1 if run_nums else 1
     return os.path.join(base_dir, f"run_{next_num}")
     
-def train_humanoid_walker(xml_path, total_timesteps=10, save_interval=10, run_mode=None):
+def train_humanoid_walker(xml_path, total_timesteps=10, save_interval=1, run_mode=None):
     """Main training function"""
     os.makedirs("training_runs", exist_ok=True)
     run_dir = get_next_run_dir("training_runs")
