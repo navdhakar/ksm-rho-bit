@@ -12,6 +12,8 @@ import matplotlib.pyplot as plt
 from collections import deque
 import time
 import os
+import argparse
+import re
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -138,7 +140,8 @@ class HumanoidEnv:
         return obs.astype(np.float32)
     
     def _calculate_reward(self):
-        """Calculate reward based on walking performance"""
+        """Need to make this reward good"""
+        # current reward function = forward_veL_reward + height_reward*2 + angulard_vel_pen*0.1 + control_pen*0.01 _ alive_bonus
         # Forward velocity reward
         forward_vel = self.data.qvel[0]
         forward_reward = forward_vel
@@ -389,12 +392,25 @@ class PPOAgent:
     def load(self, filepath):
         self.policy.load_state_dict(torch.load(filepath, map_location=self.device))
 
+def get_next_run_dir(base_dir):
+    existing = [d for d in os.listdir(base_dir) if os.path.isdir(os.path.join(base_dir, d))]
+    run_nums = []
 
-def train_humanoid_walker(xml_path, total_timesteps=1000000, save_interval=10000):
-    """Main training function"""
+    for name in existing:
+        match = re.match(r"run_(\d+)", name)
+        if match:
+            run_nums.append(int(match.group(1)))
+
+    next_num = max(run_nums) + 1 if run_nums else 1
+    return os.path.join(base_dir, f"run_{next_num}")
     
+def train_humanoid_walker(xml_path, total_timesteps=10, save_interval=10, run_mode=None):
+    """Main training function"""
+    os.makedirs("training_runs", exist_ok=True)
+    run_dir = get_next_run_dir("training_runs")
+    os.makedirs(run_dir, exist_ok=True)
     # Create environment
-    env = HumanoidEnv(xml_path, render_mode=None)  # Set to "human" for visualization
+    env = HumanoidEnv(xml_path, render_mode=run_mode)  # Set to "human" for visualization
     
     # Create agent
     agent = PPOAgent(
@@ -421,6 +437,7 @@ def train_humanoid_walker(xml_path, total_timesteps=1000000, save_interval=10000
         episode_reward = 0
         episode_length = 0
         
+        # very simple training loop
         for step in range(env.max_episode_steps):
             # Get action from agent
             action, log_prob, value = agent.get_action(state)
@@ -466,25 +483,23 @@ def train_humanoid_walker(xml_path, total_timesteps=1000000, save_interval=10000
         episode_rewards.append(episode_reward)
         episode_lengths.append(episode_length)
         episode += 1
-        
         # Save model periodically
         if timestep % save_interval == 0:
-            os.makedirs("models", exist_ok=True)
-            agent.save(f"models/ppo_humanoid_{timestep}.pth")
+            agent.save(f"{run_dir}/ppo_humanoid_{timestep}.pth")
             print(f"Model saved at timestep {timestep}")
     
     # Final save
-    agent.save("models/ppo_humanoid_final.pth")
+    agent.save(f"{run_dir}/ppo_humanoid_final.pth")
     env.close()
     
     return agent, episode_rewards
 
 
-def test_trained_model(xml_path, model_path, episodes=5):
+def test_trained_model(xml_path, model_path, episodes=5, run_mode="human"):
     """Test the trained model"""
     
     # Create environment with rendering
-    env = HumanoidEnv(xml_path, render_mode="human")
+    env = HumanoidEnv(xml_path, render_mode=run_mode)
     
     # Create and load agent
     agent = PPOAgent(env.obs_dim, env.action_dim)
@@ -559,16 +574,25 @@ def test_sim():
     print("Simulation closed.")
 
 if __name__ == "__main__":
-    # Configuration
-    model_path = os.path.join(SCRIPT_DIR, "g1/scene_23dof.xml")
+    parser = argparse.ArgumentParser(description="Train a bipedal humanoid using MuJoCo and PPO")
+    parser.add_argument("--task", type=str, default="train", help="task can be train or test")
+    parser.add_argument("--model_sim", type=str, default="g1/scene_23dof.xml", help="Path to the MuJoCo XML model file")
+    parser.add_argument("--max_steps", type=int, default=10, help="Total timesteps for training or episodes ")
+    parser.add_argument("--run_mode", type=str, default=None, help="run mode can View or empty")
+    parser.add_argument("--load_checkpoint", type=str, default="training_runs/run_1/ppo_humanoid_final.pth", help="provide complete path for checkpoint .pth")
+
+
+    args = parser.parse_args()
+    model_path = os.path.join(SCRIPT_DIR, args.model_sim)
     
-    print("Testing Humanoid Simulation - Enhanced")
-    
-    
-    
-    # Test trained model
-    test_trained_model(model_path, "models/ppo_humanoid_27.pth")
-    
+    print("Bipedal Humanoid Training")
+
+    if args.task == "train":
+        agent, rewards = train_humanoid_walker(model_path, total_timesteps=args.max_steps)
+
+    elif args.task == "test":
+        test_trained_model(model_path, args.load_checkpoint, run_mode=args.run_mode)
+
     # Plot training progress
     # plt.figure(figsize=(10, 6))
     # plt.plot(rewards)
