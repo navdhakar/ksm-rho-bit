@@ -15,7 +15,15 @@ import os
 import argparse
 import re
 
-
+from simple_ppo_rewards import (
+    NaiveForwardReward, 
+    NaiveForwardOrientationReward,
+    AngularVelocityReward,
+    StayAliveReward,
+    UprightReward,
+    EnergyEfficiencyReward,
+    CompositeReward
+)
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -56,6 +64,14 @@ class HumanoidEnv:
         self.observation_space = spaces.Box(
             low=-np.inf, high=np.inf, shape=(self.obs_dim,), dtype=np.float32
         )
+        
+        self.reward_system = CompositeReward([
+            NaiveForwardReward(clip_min=0.0, clip_max=5.0, weight=2.0),  # Encourage forward movement
+            UprightReward(weight=1.0),  # Stay upright
+            AngularVelocityReward(axes="xy", weight=-0.1),  # Penalize excessive rotation
+            StayAliveReward(balance=10.0, weight=1.0),  # Reward for not falling
+            EnergyEfficiencyReward(weight=-0.005),  # Penalize energy usage
+        ])
         
         # Environment parameters
         self.max_episode_steps = 1000
@@ -142,29 +158,23 @@ class HumanoidEnv:
         return obs.astype(np.float32)
     
     def _calculate_reward(self):
-        """Need to make this reward good"""
-        # current reward function = forward_veL_reward + height_reward*2 + angulard_vel_pen*0.1 + control_pen*0.01 _ alive_bonus
-        # Forward velocity reward
-        forward_vel = self.data.qvel[0]
-        forward_reward = forward_vel
+        """Calculate reward using composite reward system"""
+        # Get current state
+        qpos = self.data.qpos.copy()
+        qvel = self.data.qvel.copy()
+        ctrl = self.data.ctrl.copy()
         
-        # Height penalty (encourage staying upright)
-        height = self.data.qpos[2]
-        height_reward = -abs(height - self.initial_height) * 2
+        # Check if episode is done (but don't terminate here)
+        done = self._check_done()
+        success = False  # Define success criteria if needed
         
-        # Stability reward (penalize excessive angular velocity)
-        angular_vel_penalty = -np.sum(np.square(self.data.qvel[3:6])) * 0.1
+        # Get detailed reward breakdown
+        reward_dict = self.reward_system.get_reward(qpos, qvel, done, success, ctrl)
         
-        # Energy efficiency (penalize large control inputs)
-        control_penalty = -np.sum(np.square(self.data.ctrl)) * 0.01
+        # Store reward components for logging (optional)
+        self.last_reward_breakdown = reward_dict
         
-        # Alive bonus
-        alive_bonus = 1.0
-        
-        total_reward = (forward_reward + height_reward + 
-                       angular_vel_penalty + control_penalty + alive_bonus)
-        
-        return total_reward
+        return reward_dict['total']
     
     def _is_done(self):
         """Check if episode should terminate"""
@@ -181,6 +191,11 @@ class HumanoidEnv:
             return True
             
         return False
+
+    def _check_done(self):
+        """Check termination without printing (used by reward function)"""
+        height = self.data.qpos[2]
+        return height < 0.5 or self.current_step >= self.max_episode_steps
     
     def close(self):
         """Clean up resources"""

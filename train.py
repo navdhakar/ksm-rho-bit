@@ -18,6 +18,7 @@ import optax
 import xax
 from jaxtyping import Array, PRNGKeyArray
 
+
 nest_asyncio.apply()
 # These are in the order of the neural network outputs.
 ZEROS: list[tuple[str, float]] = [
@@ -107,6 +108,7 @@ class BentArmPenalty(JointPositionPenalty):
                 "right_shoulder_yaw",
                 "right_elbow",
                 "right_wrist_pitch",
+                
                 "left_shoulder_pitch",
                 "left_shoulder_roll",
                 "left_shoulder_yaw",
