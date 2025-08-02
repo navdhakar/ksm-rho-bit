@@ -49,3 +49,26 @@ python simple_ppo.py --max_steps 10
 ```bash
 python simple_ppo.py --task test --run_mode view  --load_checkpoint=training_runs/run_5/ppo_humanoid_final.pth
 ```
+
+## Working on PPO V2
+added a loss and training vizualation
+
+- Training with live plots
+```bash
+python main.py --task train --enable_live_plots --max_steps 100000
+```
+
+- Testing with visualization
+```bash
+python main.py --task test --test_episodes 10 --run_mode view
+```
+
+- Analyze completed run
+```bash
+python main.py --task analyze --load_checkpoint training_runs/run_1/ppo_humanoid_final.pth
+```
+
+- Compare multiple runs
+```bash
+python main.py --task compare --run_dirs training_runs/run_1 training_runs/run_2 --run_names "Baseline" "Tuned"
+```
